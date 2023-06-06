@@ -128,7 +128,7 @@ pub fn game_state_render(
             match game_state.0 {
                 GameState::Overworld => {
                     constructor!{
-                        <ElementBundle key={"a"}>
+                        <ElementBundle>
                             <ElementBundle>
                                 <TextWidgetBundle
                                     text={TextProps {
@@ -165,7 +165,7 @@ pub fn game_state_render(
                 },
                 GameState::Combat => {
                     constructor!{
-                        <CombatStateBundle key={"combat_scene"} />
+                        <CombatStateBundle />
                     }
                 }
             }
@@ -227,8 +227,12 @@ pub fn update_combat_state<
     mut local_state: Local<CombatState>,
     widget_context: Res<KayakWidgetContext>,
     widget_param: WidgetParam<Props, UIState>,
+    added: Query<Entity, With<CombatStateProps>>,
 ) -> bool {
     if widget_param.has_changed(&widget_context, entity, previous_entity) {
+        return true;
+    }
+    if let Ok(_) = added.get(entity) {
         return true;
     }
     let changed = combat_state.0 != *local_state;
@@ -259,7 +263,7 @@ pub fn combat_state_render(
         let parent_id = Some(entity);
 
         rsx! {
-            <ElementBundle key={"combat_menu"}
+            <ElementBundle
                 styles={KStyle{
                     layout_type: LayoutType::Column.into(),
                     width: Units::Pixels(420.0).into(),
@@ -274,7 +278,7 @@ pub fn combat_state_render(
                         ..Default::default()
                     }}
                 />
-                <KButtonBundle key={"combat_menu_run"}
+                <KButtonBundle
                     styles={KStyle {
                         top: Units::Stretch(1.0).into(),
                         bottom: Units::Stretch(1.0).into(),
