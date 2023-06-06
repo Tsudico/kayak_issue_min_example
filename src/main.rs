@@ -46,10 +46,10 @@ fn startup(
         update_game_state::<GameStateProps, GameWidgetState>,
         game_state_render,
     );
-    widget_context.add_widget_data::<CombatStateProps, EmptyState>();
+    widget_context.add_widget_data::<CombatStateProps, CombatWidgetState>();
     widget_context.add_widget_system(
         CombatStateProps::default().get_name(),
-        update_combat_state::<CombatStateProps, EmptyState>,
+        update_combat_state::<CombatStateProps, CombatWidgetState>,
         combat_state_render,
     );
     let parent_id: Option<Entity> = None;
@@ -195,7 +195,7 @@ pub fn game_state_render(
     true
 }
 
-#[derive(States, PartialEq, Eq, Debug, Default, Clone, Hash)]
+#[derive(States, PartialEq, Eq, Debug, Default, Clone, Copy, Hash)]
 pub enum CombatState {
     #[default]
     NotInCombat,
@@ -211,6 +211,12 @@ pub enum CombatState {
 pub struct CombatStateProps;
 
 impl Widget for CombatStateProps {}
+
+#[derive(Component, Default, Debug, Clone, PartialEq, Eq)]
+pub struct CombatWidgetState {
+    current: CombatState,
+    last: CombatState,
+}
 
 #[derive(Bundle)]
 pub struct CombatStateBundle {
@@ -263,7 +269,13 @@ pub fn combat_state_render(
     mut commands: Commands,
     mut query: Query<(&KStyle, &mut ComputedStyles)>,
     combat_state: Res<State<CombatState>>,
+    mut state_query: Query<&mut CombatWidgetState>,
 ) -> bool {
+    let state_entity =
+        widget_context.use_state(&mut commands, entity, CombatWidgetState {
+            current: CombatState::NotInCombat,
+            last: CombatState::NotInCombat,
+        });
     if let Ok((style, mut computed_styles)) = query.get_mut(entity) {
         *computed_styles = KStyle::default()
             .with_style(style)
@@ -275,6 +287,13 @@ pub fn combat_state_render(
                 ..Default::default()
             })
             .into();
+        
+        if let Ok(mut state) = state_query.get_mut(state_entity) {
+            if state.current != combat_state.0 {
+                state.last = state.current;
+                state.current = combat_state.0;
+            }
+
             let parent_id = Some(entity);
 
             rsx! {
@@ -316,6 +335,7 @@ pub fn combat_state_render(
                     />
                 </ElementBundle>
             };
+        }
     }
 
     true
