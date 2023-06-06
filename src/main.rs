@@ -19,7 +19,7 @@ fn main() {
         .run();
 }
 
-#[derive(States, PartialEq, Eq, Debug, Default, Clone, Hash)]
+#[derive(States, PartialEq, Eq, Debug, Default, Clone, Copy, Hash)]
 pub enum GameState {
     #[default]
     Overworld,
@@ -40,10 +40,10 @@ fn startup(
     let mut widget_context = KayakRootContext::new(camera_entity);
     widget_context.add_plugin(KayakWidgetsContextPlugin);
 
-    widget_context.add_widget_data::<GameStateProps, EmptyState>();
+    widget_context.add_widget_data::<GameStateProps, GameWidgetState>();
     widget_context.add_widget_system(
         GameStateProps::default().get_name(),
-        update_game_state::<GameStateProps, EmptyState>,
+        update_game_state::<GameStateProps, GameWidgetState>,
         game_state_render,
     );
     widget_context.add_widget_data::<CombatStateProps, EmptyState>();
@@ -67,6 +67,12 @@ fn startup(
 pub struct GameStateProps;
 
 impl Widget for GameStateProps {}
+
+#[derive(Component, Default, Debug, Clone, PartialEq, Eq)]
+pub struct GameWidgetState {
+    current: GameState,
+    last: GameState,
+}
 
 #[derive(Bundle)]
 pub struct GameStateBundle {
@@ -119,59 +125,72 @@ pub fn game_state_render(
     widget_context: Res<KayakWidgetContext>,
     mut commands: Commands,
     game_state: Res<State<GameState>>,
+    mut state_query: Query<&mut GameWidgetState>,
 ) -> bool {
-    let parent_id = Some(entity);
+    let state_entity =
+        widget_context.use_state(&mut commands, entity, GameWidgetState {
+            current: GameState::Overworld,
+            last: GameState::Overworld,
+        });
+    if let Ok(mut state) = state_query.get_mut(state_entity) {
+        if state.current != game_state.0 {
+            state.last = state.current;
+            state.current = game_state.0;
+        }
 
-    rsx!{
-        <ElementBundle>
-        {
-            match game_state.0 {
-                GameState::Overworld => {
-                    constructor!{
+        let parent_id = Some(entity);
+    
+        rsx!{
+            <ElementBundle>
+            {
+                match game_state.0 {
+                    GameState::Overworld => {
+                        constructor!{
                         <ElementBundle key={"a"}>
-                            <ElementBundle>
-                                <TextWidgetBundle
-                                    text={TextProps {
-                                        content: "OverWorld".into(),
-                                        size: 20.0,
-                                        ..Default::default()
-                                    }}
-                                />
-                                <KButtonBundle
-                                    styles={KStyle {
-                                        top: Units::Stretch(1.0).into(),
-                                        bottom: Units::Stretch(1.0).into(),
-                                        left: Units::Stretch(1.0).into(),
-                                        right: Units::Stretch(1.0).into(),
-                                        ..Default::default()
-                                    }}
-                                    button={KButton { text: "Enter Combat".into() }}
-                                    on_event={OnEvent::new(
-                                        move |In(_entity): In<Entity>,
-                                        mut event: ResMut<KEvent>,
-                                        mut next_state: ResMut<NextState<GameState>>| {
-                                            if let EventType::Click(..) = event.event_type {
-                                                event.prevent_default();
-                                                event.stop_propagation();
-                                                info!("Entering combat");
-                                                next_state.set(GameState::Combat);
-                                            }
-                                        },
-                                    )}
-                                />
+                                <ElementBundle>
+                                    <TextWidgetBundle
+                                        text={TextProps {
+                                            content: "OverWorld".into(),
+                                            size: 20.0,
+                                            ..Default::default()
+                                        }}
+                                    />
+                                    <KButtonBundle
+                                        styles={KStyle {
+                                            top: Units::Stretch(1.0).into(),
+                                            bottom: Units::Stretch(1.0).into(),
+                                            left: Units::Stretch(1.0).into(),
+                                            right: Units::Stretch(1.0).into(),
+                                            ..Default::default()
+                                        }}
+                                        button={KButton { text: "Enter Combat".into() }}
+                                        on_event={OnEvent::new(
+                                            move |In(_entity): In<Entity>,
+                                            mut event: ResMut<KEvent>,
+                                            mut next_state: ResMut<NextState<GameState>>| {
+                                                if let EventType::Click(..) = event.event_type {
+                                                    event.prevent_default();
+                                                    event.stop_propagation();
+                                                    info!("Entering combat");
+                                                    next_state.set(GameState::Combat);
+                                                }
+                                            },
+                                        )}
+                                    />
+                                </ElementBundle>
                             </ElementBundle>
-                        </ElementBundle>
-                    }
-                },
-                GameState::Combat => {
-                    constructor!{
+                        }
+                    },
+                    GameState::Combat => {
+                        constructor!{
                         <CombatStateBundle key={"combat_scene"} />
+                        }
                     }
                 }
             }
-        }
-        </ElementBundle>
-    };
+            </ElementBundle>
+        };
+    }
 
     true
 }
@@ -256,47 +275,47 @@ pub fn combat_state_render(
                 ..Default::default()
             })
             .into();
-        let parent_id = Some(entity);
+            let parent_id = Some(entity);
 
-        rsx! {
+            rsx! {
             <ElementBundle key={"combat_menu"}
-                styles={KStyle{
-                    layout_type: LayoutType::Column.into(),
-                    width: Units::Pixels(420.0).into(),
-                    row_between: Units::Pixels(10.0).into(),
-                    ..Default::default()
-                }}
-            >
-                <TextWidgetBundle
-                    text={TextProps {
-                        content: "Combat".into(),
-                        size: 20.0,
+                    styles={KStyle{
+                        layout_type: LayoutType::Column.into(),
+                        width: Units::Pixels(420.0).into(),
+                        row_between: Units::Pixels(10.0).into(),
                         ..Default::default()
                     }}
-                />
+                >
+                    <TextWidgetBundle
+                        text={TextProps {
+                            content: "Combat".into(),
+                            size: 20.0,
+                            ..Default::default()
+                        }}
+                    />
                 <KButtonBundle key={"combat_menu_run"}
-                    styles={KStyle {
-                        top: Units::Stretch(1.0).into(),
-                        bottom: Units::Stretch(1.0).into(),
-                        left: Units::Stretch(1.0).into(),
-                        right: Units::Stretch(1.0).into(),
-                        ..Default::default()
-                    }}
-                    button={KButton { text: "Run Away!".into() }}
-                    on_event={OnEvent::new(
-                        move |In(_entity): In<Entity>,
-                        mut event: ResMut<KEvent>,
-                        mut next_state: ResMut<NextState<GameState>>| {
-                            if let EventType::Click(..) = event.event_type {
-                                event.prevent_default();
-                                event.stop_propagation();
-                                next_state.set(GameState::Overworld);
-                            }
-                        },
-                    )}
-                />
-            </ElementBundle>
-        };
+                        styles={KStyle {
+                            top: Units::Stretch(1.0).into(),
+                            bottom: Units::Stretch(1.0).into(),
+                            left: Units::Stretch(1.0).into(),
+                            right: Units::Stretch(1.0).into(),
+                            ..Default::default()
+                        }}
+                        button={KButton { text: "Run Away!".into() }}
+                        on_event={OnEvent::new(
+                            move |In(_entity): In<Entity>,
+                            mut event: ResMut<KEvent>,
+                            mut next_state: ResMut<NextState<GameState>>| {
+                                if let EventType::Click(..) = event.event_type {
+                                    event.prevent_default();
+                                    event.stop_propagation();
+                                    next_state.set(GameState::Overworld);
+                                }
+                            },
+                        )}
+                    />
+                </ElementBundle>
+            };
     }
 
     true
