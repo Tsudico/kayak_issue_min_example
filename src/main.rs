@@ -146,7 +146,7 @@ pub fn game_state_render(
                 match game_state.0 {
                     GameState::Overworld => {
                         constructor!{
-                        <ElementBundle key={"a"}>
+                        <ElementBundle>
                                 <ElementBundle>
                                     <TextWidgetBundle
                                         text={TextProps {
@@ -183,7 +183,7 @@ pub fn game_state_render(
                     },
                     GameState::Combat => {
                         constructor!{
-                        <CombatStateBundle key={"combat_scene"} />
+                        <CombatStateBundle key={"combat_state"} />
                         }
                     }
                 }
@@ -297,7 +297,7 @@ pub fn combat_state_render(
             let parent_id = Some(entity);
 
             rsx! {
-            <ElementBundle key={"combat_menu"}
+            <ElementBundle
                     styles={KStyle{
                         layout_type: LayoutType::Column.into(),
                         width: Units::Pixels(420.0).into(),
@@ -312,7 +312,7 @@ pub fn combat_state_render(
                             ..Default::default()
                         }}
                     />
-                <KButtonBundle key={"combat_menu_run"}
+                <KButtonBundle
                         styles={KStyle {
                             top: Units::Stretch(1.0).into(),
                             bottom: Units::Stretch(1.0).into(),
